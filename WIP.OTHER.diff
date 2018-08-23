@@ -1,0 +1,385 @@
+diff --git a/.netrwhist b/.netrwhist
+new file mode 100644
+index 0000000..e8a694d
+--- /dev/null
++++ b/.netrwhist
+@@ -0,0 +1,10 @@
++let g:netrw_dirhistmax  =10
++let g:netrw_dirhist_cnt =8
++let g:netrw_dirhist_1='/usr/local/share/nvim/runtime/autoload/remote'
++let g:netrw_dirhist_2='/usr/local/share/nvim/runtime/autoload'
++let g:netrw_dirhist_3='/usr/local/share/nvim/runtime'
++let g:netrw_dirhist_4='/usr/local/share/nvim/runtime/plugin'
++let g:netrw_dirhist_5='/home/peter/src/spacetea.vim.git'
++let g:netrw_dirhist_6='/home/peter/playground-homely/homely.git/homely'
++let g:netrw_dirhist_7='/home/peter/playground-homely/homely.git/homely/_vcs'
++let g:netrw_dirhist_8='/home/peter/src/spacetea.vim.git/rplugin/python3/spacetea'
+diff --git a/README.md b/README.md
+index 031e6c1..4fbbe4d 100644
+--- a/README.md
++++ b/README.md
+@@ -9,3 +9,91 @@ unit tests - `<space>t`. This plugin makes it easy to:
+ - access the test output in a new split/tab when finished
+ - remember which tests are associated with which buffers and projects
+ 
++# INSTALLATION
++
++- *TODO* mention PyYAML requirements
++- *TODO* installation guide for plugin manager
++- *TODO* adding a line to your ~/.gitignore or .gitignore
++- *TODO* adding the teacup to your 'statusline'
++
++# QUICKSTART GUIDE
++
++## Associating Tests
++
++Tests are associated with files and projects (and vice versa) using `.spacetea`
++configuration files, which can be located in your home directory
++(`~/.config/spacetea/.spacetea`) and/or the root of your git project.
++
++## Running Tests
++
++Once you have some tests associated, simply use `<space>t` to run the associated tests, or use
++
++## Viewing Test Output in Realtime
++
++TODO
++
++## Viewing Test Output After Completion
++
++TODO
++
++# CONFIGURATION
++
++If you don't like the default `<space>t` mapping, you can change it to something else by setting `g:spacetea_map_exec`:
++
++    " use <leader>t to run tests instead of <space>t
++    let g:spacetea_map_exec = '<leader>t'
++
++You can also change the default `<space>T` mapping used for accessing .spacetea config:
++
++    " use <F5> to open .spacetea config instead of <space>T
++    let g:spacetea_map_config = '<F5>'
++
++	" or just disable the `<space>T` mapping altogether - you can still use
++	" :SpaceTeaConfig or edit the .spacetea config file directly
++
++
++
++
++- RunTestsByConfig(file_or_dir, config)
++  - if there is a buffer open for file_or_dir, set a b:var in it so that neovim knows we're running its tests
++  - if there is a g:spacetea_display var set, use that for display; otherwise
++    call GetAutoDisplay() to know where to show test results
++
++- GetConfigPath(file_or_dir)
++  - find project top level relative to file_or_dir and return PROJECT_PATH/.spacetea
++
++- GetAutoDisplay()
++  - TODO: return something like 'tmux'
++
++- `.spacetea` layout:
++  - JSON
++  - "." key for whole project config, "<filename>" key for per-file config
++  - each entry is a LIST OF DICTS which may have the following keys:
++    - "strategy": (mandatory) one of 'command', 'pytest'
++    - "command": the shell command to be executed if strategy is 'command'. Can
++      be a string, or list of items to be shell-escaped
++    - "pytest_args": a list of options to be passed to the py.test flag
++      when stragety is 'pytest'
++
++- g:spacetea_display
++  - tells `:SpaceTea test` where to where to
++  - where to 
++
++
++- SOME CONCEPTS
++  - "preview": where to show the tests while they are running. Options are
++    - NULL: tests aren't shown anywhere while they're running
++    - "tmux:SESSION[:WINDOW]" tests will be shown in a new window (or the
++      window named WINDOW) of tmux session SESSION. The window will be given
++      focus while the tests are running. The window will remain open after the
++      tests have completed. The same window will be re-used for subsequent
++      runs. A new pane is created for
++      each file_or_dir that gets tested in the current run.
++  - "examine": where to view tests after they have completed Options are
++    - NULL: don't open the tests anywhere - just show a message stating that
++      tests failed. If you had a "preview" set to tmux you should be able to
++      see the test output there.
++    - "tab:split": open test output in a new vim tab; :split horizontally for each
++      separate output.
++    - "right": open test output in a new vim window in the current tab which is
++      right-maximized and then :split for each output.
+diff --git a/TODO.txt b/TODO.txt
+new file mode 100644
+index 0000000..3ed17a4
+--- /dev/null
++++ b/TODO.txt
+@@ -0,0 +1,16 @@
++ASSOCIATING
++- project-local .spacetea file? Or something in ~/.config/?
++
++RUNNING
++-
++
++VIEWING IN REALTIME
++-
++
++OPENING AFTER
++-
++
++CONFIGURING
++-
++
++- make a skeleton file for local .spacetea config file
+diff --git a/bin/new-spacetea-window-ubuntu b/bin/new-spacetea-window-ubuntu
+new file mode 100755
+index 0000000..da23d30
+--- /dev/null
++++ b/bin/new-spacetea-window-ubuntu
+@@ -0,0 +1,62 @@
++#!/usr/bin/env python3
++import os.path
++import shlex
++import time
++from datetime import datetime
++from pathlib import Path
++from shlex import quote
++from subprocess import Popen, check_call
++
++import click
++
++BASE_DIR = Path(os.path.expanduser('HOME'))
++SOCK_DIR = BASE_DIR / 'windows'
++
++
++def get_new_sock_name():
++    # invent a new socket name
++    sock_name = None
++    attempts = 0
++    while attempts < 100:
++        attempts += 1
++        if sock_name is not None:
++            time.sleep(0.01)
++        now = datetime.now()
++        sock_name = SOCK_DIR / ('{}.sock'.format(now.strftime('%Y-%m-%d_%H:%M:%S.%f')))
++        if not os.path.exists(sock_name):
++            return sock_name
++
++    raise Exception("Too many attempts at get_new_sock_name()")  # noqa
++
++
++@click.command()
++@click.option('--cwd')
++@click.option('--foreground', is_flag=True)
++@click.argument('args', nargs=-1)
++def main(cwd, foreground, args):
++    # first, kill previous windows by nudging all of the sockets in ~/.spacetea/openwindows
++    # TODO
++
++    # now, invent a new socket name
++    #sock_name = get_new_sock_name()
++
++    # now build a command
++
++    # opens a new terminal window and executes the shell command stored in $1.
++    cmd = [
++        'gnome-terminal',
++        '--window',
++        '--maximize',
++        '--title=HI THERE',
++        '--hide-menubar',
++        '--zoom=1.0',
++        '--geometry=+0+0',
++        '--',
++        'bash', '-c', ' '.join(quote(a) for a in args),
++    ]
++    kwargs = {'cwd': cwd} if cwd else {}
++    check_call(cmd, **kwargs)
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/email.txt b/email.txt
+new file mode 100644
+index 0000000..50ad6dc
+--- /dev/null
++++ b/email.txt
+@@ -0,0 +1,51 @@
++Hi Bram, thanks for getting back to me. I'll try to express this in writing as clearly as I can.
++
++I'm looking at running another fundraiser for neovim (since it has now been over 4 years since the original fundraiser by Tarruda). You're probably thinking, "What does that have to do with Vim?" That's the reason for this email.
++
++I have been looking around online at what people have been saying about Neovim and Vim over the last 4 years, and there are many disparaging attitudes towards both projects. The comments are usually saying either "Bram is a problem for Vim because he isn't interested in merging patches for advanced features, that's why we need Neovim.", or coming from the other angle, "Neovim isn't worth using because all the best features like async and terminal will get re-implemented in Vim anyway." It seems like the projects can't be discussed online without these sorts of comments coming up again and again.
++
++I understand some of the frustration myself - back in 2006 I submitted a huge patch for the PHP Syntax file (it would've made syntax/php.vim the largest syntax file in the project) with many advanced features. But rather than merging the patch like previous ones I had submitted, your response was "A lot of things changed! How many people have tested the new version? The PHP syntax is used a lot, I wouldn't want to cause trouble for PHP users." At the time I was saddened that I wouldn't be able to 
++
++
++I'm saddened by all the negativity towards two open source projects which are very dear to me, but more importantly I'm concerned that many people are distracted from the amazing ecosystem that is now possible with Vim/Neovim.
++
++- Disparaging attitudes prevalent in the community
++- Neovim
++
++
++
++
++
++
++
++On Tuesday, 7 August 2018, 5:57:40 am AEST, Bram Moolenaar <Bram@moolenaar.net> wrote:
++
++
++
++Peter -
++
++> Hi Bram, I hope you are well and enjoying your weekend. I'd love to have
++> a quick video or voice chat with you about the future of vim and neovim
++> - I think there is a lot of untapped potential for both projects that
++> can be unlocked. Do you have 15-30 minutes you can spare for a friendly
++> chat this week (tonight even)?
++> Cheers,The prodigal PHP syntax maintainerPeter Hodge
++
++I don't usually do that.  How about asking by email?
++
++
++- Bram
++
++
++-- 
++FATHER: We are here today to witness the union of two young people in the
++        joyful bond of the holy wedlock.  Unfortunately, one of them, my son
++        Herbert, has just fallen to his death.
++  [Murmurs from CROWD;  the BRIDE smiles with relief, coughs.]
++                "Monty Python and the Holy Grail" PYTHON (MONTY) PICTURES LTD
++
++/// Bram Moolenaar -- Bram@Moolenaar.net -- http://www.Moolenaar.net   \\\
++///        sponsor Vim, vote for features -- http://www.Vim.org/sponsor/ \\\
++\\\  an exciting new programming language -- http://www.Zimbu.org       ///
++\\\            help me help AIDS victims -- http://ICCF-Holland.org
++  ///
+diff --git a/logs b/logs
+new file mode 100644
+index 0000000..e69de29
+diff --git a/rplugin/python3/spacetea/__init__.py b/rplugin/python3/spacetea/__init__.py
+new file mode 100644
+index 0000000..2f7c710
+--- /dev/null
++++ b/rplugin/python3/spacetea/__init__.py
+@@ -0,0 +1,102 @@
++import os
++from pathlib import Path
++from subprocess import STDOUT, Popen, check_output
++
++import neovim
++
++#import yaml
++
++
++# path to user config file
++CFG = Path(os.getenv('HOME'))
++
++
++def _get_project_root(origin: Path, *, _guard=100) -> Path:
++    if origin.is_dir():
++        if (origin / '.git').exists():
++            return origin
++
++    # if the origin has more than 4 chars, we attempt it
++    if _guard < 1:
++        raise Exception("Couldn't find project root: too much recursion")
++
++    parent = origin.parent
++    if parent == origin:
++        raise Exception("Couldn't find project root: reached filesystem root")
++
++    return _get_project_root(parent, _guard=_guard - 1)
++
++
++def _get_path_to():
++    pass
++
++
++def getrepoid(project_root: Path) -> str:
++    cmd = ['git', 'rev-list', '--max-parents=0', 'HEAD']
++    sub = Popen(cmd, cwd=str(project_root), stdout=PIPE, stderr=STDOUT)
++    stdout, _ = sub.communicate()
++    if sub.returncode == 0:
++        return _getfirsthash(stdout)
++    if sub.returncode != 128:
++        raise Exception("Unexpected returncode {} from git rev-list"
++                        .format(sub.returncode))
++
++    if b"ambiguous argument 'HEAD'" not in stdout:
++        raise Exception("Unexpected exitcode {}".format(sub.returncode))
++
++    # there's no HEAD revision, so we'll do the command again with
++    # --all instead
++    cmd = ['git', 'rev-list', '--max-parents=0', '--all']
++    sub = Popen(cmd, cwd=str(project_root), stdout=PIPE, stderr=STDOUT)
++    stdout, _ = sub.communicate()
++    if sub.returncode == 0:
++        return _getfirsthash(stdout)
++    if sub.returncode != 129:
++        raise Exception("Unexpected returncode {} from git rev-list"
++                        .format(sub.returncode))
++    if b"usage: git rev-list" in stdout:
++        raise Exception('Repo has no commits')
++
++    raise SystemError("Unexpected exitcode {}".format(returncode))
++
++def _getfirsthash(self, stdout):
++    stripped = stdout.rstrip().decode('utf-8')
++    if '\n' in stripped:
++        raise RepoError("Git repo has multiple initial commits")
++    return stripped
++
++
++@neovim.plugin
++class Spacetea:
++    def __init__(self, vim):
++        self._vim = vim
++
++        # TODO: set up <space>t mapping
++        #
++        # TODO: check g:spacetea_global_config for paths to global config files
++        #vim.command('nnoremap <space>t :echo "hi there"<CR>')
++
++    @neovim.command('SpaceTeaUserConfig', sync=True, nargs=0)
++    def edit_user_config(self):
++        current = self._vim.current.buffer.name
++        pr = _get_project_root(Path(current))
++
++        # get the project's ID
++
++        self._vim.command('split {}'.format(pr / '.spacetea'))
++
++    @neovim.command('SpaceTeaProjectConfig', sync=True, nargs=0)
++    def edit_project_config(self):
++        raise Exception("TODO: no way dude")  # noqa
++        self._vim.command('split spacetea://project')
++
++    @neovim.autocmd('BufNewFile', pattern='~/.spacetea', sync=True)
++    def populate_user_config(self):
++        return self._populate_config('user.yaml')
++
++    def _populate_config(self, template):
++        self._vim.current.buffer[:] = ['a', 'b', 'c']
++
++    @neovim.autocmd('BufNewFile', pattern='spacetea://project', sync=True)
++    def populate_project_config(self):
++        pass
+diff --git a/test.py b/test.py
+new file mode 100644
+index 0000000..8d2585b
+--- /dev/null
++++ b/test.py
+@@ -0,0 +1 @@
++print("HI THERE")
+diff --git a/testit b/testit
+new file mode 100755
+index 0000000..6be1ecb
+--- /dev/null
++++ b/testit
+@@ -0,0 +1,2 @@
++#!/usr/bin/env bash
++./bin/new-spacetea-window-ubuntu --cwd "$PWD" --foreground nvim test.py '+redraw!'
